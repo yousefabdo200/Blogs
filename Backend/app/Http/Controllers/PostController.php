@@ -11,7 +11,7 @@ class PostController extends Controller
     use Response;
     public function index(){
         //Post::factory(20)->create();
-        $posts = Post::with('user')->get();
+        $posts = Post::with('user')->paginate(10);
         return $this->SucessResponse($posts,"Data loaded successfully",200);
     }
 }

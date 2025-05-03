@@ -11,5 +11,5 @@ Route::post('/login',[UserController::class,'login']);
 Route::post('/signup',[UserController::class,'signup']);
 Route::post('/logout',[UserController::class,'logout']);
 Route::get('/user',[UserController::class,'user']);
-Route::get('/post',[PostController::class,'index']);
-Route::post('/post',[PostController::class,'store']);
+Route::get('/posts',[PostController::class,'index']);
+Route::post('/posts',[PostController::class,'store']);

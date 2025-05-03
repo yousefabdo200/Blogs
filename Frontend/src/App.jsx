@@ -15,6 +15,7 @@ function App() {
   /******************************Login / signup hadel********************************************* */
   const [user,setUser]=useState(null);
   const {register, handleSubmit, formState: { errors }, setError } = useForm();
+  
   const handleSignup = async (data) => {
     try {
       const res = await axios.post('http://127.0.0.1:8000/api/signup', data);
@@ -84,16 +85,42 @@ function App() {
   };
   /***************************************************************************************** */
   /************************************get all posts **************************************************** */
-  const [posts,setPosts]=useState();
+  const [posts,setPosts]=useState([]);
+  const [page,setPage]=useState(1);
+  const [hasMore,setHasMore]=useState(true);
   useEffect(
-  ()=>{
-    const fetchposts= async ()=>{
-      const res = await axios.get('http://127.0.0.1:8000/api/post');
-      console.log('posts reseved:', res.data.data);
-      setPosts(res.data.data);
+    ()=>{
+      const onScroll = () => {
+        if (
+          window.innerHeight + document.documentElement.scrollTop + 100 >=
+            document.documentElement.scrollHeight &&
+          hasMore
+        ) {
+          setPage((prev) => prev + 1);
+        }
+      };
+      window.addEventListener("scroll", onScroll);
+      return () => window.removeEventListener("scroll", onScroll);
     }
-    fetchposts();
-  },[]);
+  , [hasMore])
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const res = await axios.get(`http://127.0.0.1:8000/api/posts?page=${page}`);
+        console.log("API Response:", res.data.data.data);
+        const newPosts =res.data.data.data;
+        if (newPosts.length === 0) {
+          setHasMore(false);
+        } else {
+          setPosts((prev) => [...prev, ...newPosts]);
+        }
+      } catch (err) {
+        console.error("Error fetching posts:", err);
+      }
+    };
+    fetchPosts();
+  }, [page]);
+  
   /***************************************************************************************************** */
   return (
     <>

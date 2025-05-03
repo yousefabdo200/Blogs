@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate ,Link } from 'react-router-dom';
 import { UserContext } from '../Context/UserContext';
 
 export default function Navbar() {
@@ -8,7 +8,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     setUser(null);
-    navigate('/login');
+    navigate('/');
   };
 
   return (
@@ -26,7 +26,7 @@ export default function Navbar() {
                 </NavLink>
       </div>
       <div className="absolute left-1/2 transform -translate-x-1/2">
-        <p className="text-2xl font-bold">Share your blogs now</p>
+        <Link to="/"><p className="text-2xl font-bold">Share your blogs now</p></Link>
       </div>
       <div className="flex-none">
         <ul className="menu menu-horizontal px-1">
@@ -52,12 +52,9 @@ export default function Navbar() {
           ) : (
             <>
               <li>
-                <button onClick={handleLogout} className="text-red-500 font-bold">
+                <button onClick={handleLogout} className="text-1xl btn btn-primary">
                   Logout
                 </button>
-              </li>
-              <li>
-                <span className="text-green-600 font-semibold">Welcome, {user.name}</span>
               </li>
             </>
           )}
