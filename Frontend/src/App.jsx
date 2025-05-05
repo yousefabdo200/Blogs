@@ -149,7 +149,7 @@ function App() {
         register:createPostregister,
         handleSubmit:handelCreatePostSubmit,
         formState: { errors: createPostErrors},
-       
+        reset: resetCreateForm,
       } = useForm();
       const createPostOnSubmit = async (data) => {  // Make it async
         try {
@@ -249,6 +249,7 @@ const updatePostOnSubmit = async (data) => {
        errors={updatePostErrors} 
        onSubmit={updatePostOnSubmit} 
        handelOld={data}
+       reset={resetUpdateForm}
        />}>
        </Route>
        <Route  path="/posts/create" element={<CreatePost
@@ -257,7 +258,7 @@ const updatePostOnSubmit = async (data) => {
        handleSubmit={handelCreatePostSubmit}  
        errors={createPostErrors} 
        onSubmit={createPostOnSubmit}  
-      
+       reset={resetCreateForm}
        />}>
        </Route>
         <Route path="/login" element={<Login
