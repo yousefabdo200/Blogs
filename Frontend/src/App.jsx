@@ -9,6 +9,8 @@ import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import { UserContext } from './Context/UserContext';
 import { useNavigate } from "react-router";
+import Update from './Componts/Update';
+import CreatePost from './Componts/CreatePost';
 
 function App() {
   let navigate = useNavigate();
@@ -25,6 +27,7 @@ function App() {
         'email': res.data.data.email,
         'id': res.data.data.id,
       });
+      console.log(user);
       navigate("/")
     } catch (err) {
       const serverErrors = err.response?.data.data;
@@ -88,6 +91,8 @@ function App() {
   const [posts,setPosts]=useState([]);
   const [page,setPage]=useState(1);
   const [hasMore,setHasMore]=useState(true);
+  const [refersh,setRefresh]=useState(false);
+
   useEffect(
     ()=>{
       const onScroll = () => {
@@ -112,16 +117,119 @@ function App() {
         if (newPosts.length === 0) {
           setHasMore(false);
         } else {
-          setPosts((prev) => [...prev, ...newPosts]);
+          setPosts((prev) => {
+            const existingIds = new Set(prev.map(post => post.id));
+            const filteredNewPosts = newPosts.filter(post => !existingIds.has(post.id));
+            return [...prev, ...filteredNewPosts];
+          });
         }
       } catch (err) {
         console.error("Error fetching posts:", err);
       }
     };
     fetchPosts();
-  }, [page]);
+  }, [page,refersh]);
+  /*********************************************Handel Delete******************************************************** */
+  const handelDelete= async (id)=>{
+    try{
+     await axios.delete(`http://127.0.0.1:8000/api/posts/${id}`);
+     setPosts([]);       
+     setPage(1);         
+     setHasMore(true);    
+     setRefresh(prev => !prev); 
+    }
+    catch (err) {
+     console.error("Error deleting post:", err);
+   }
+  }
+  /****************************************************************************************************** */
+ /******************************************** handel create post************************************************************ */
+ 
+      const {
+        register:createPostregister,
+        handleSubmit:handelCreatePostSubmit,
+        formState: { errors: createPostErrors},
+       
+      } = useForm();
+      const createPostOnSubmit = async (data) => {  // Make it async
+        try {
+          const formData = new FormData();
+          formData.append('title', data.title);
+          formData.append('body', data.body);
+          
+          formData.append('user_id', user.id)
+          if (data.img && data.img.length > 0) {
+            formData.append('img', data.img[0]);
+          }
+          console.log("data from create",user)
+          
+          await axios.post('http://localhost:8000/api/posts', formData);
+          setPosts([]);       
+          setPage(1);         
+          setHasMore(true);    
+          setRefresh(prev => !prev); 
+          navigate("/");
+        } catch (err) {
+          console.error("Error creating post:", err);
+        }
+      };
+ 
+ /************************************************************************************************************************* */
+ /*******************************************Handel update******************************************************** */
+ const [data,setData]=useState(null)
+const handelUpdate=async(id)=>{
+  try{
+    const { data } = await axios.get(`http://127.0.0.1:8000/api/posts/${id}`);
+    setData(data.data)
+   }
+   catch (err) {
+    console.error("Error update post:", err);
+  }
+}
+useEffect(() => {
+  if (data) {
+    navigate(`/posts/${data.id}/edit`);  
+  }
+}, [data]);
+const {
+  register: updatePostregister,
+  handleSubmit: handelUpdatePostSubmit,
+  formState: { errors: updatePostErrors },
+  reset: resetUpdateForm, 
+} = useForm();
+
+useEffect(() => {
+  if (data) {
+    resetUpdateForm({
+      id: data.id,
+      title: data.title,
+      body: data.body,
+    });
+  }
+}, [data, resetUpdateForm]);
+
+const updatePostOnSubmit = async (data) => { 
   
-  /***************************************************************************************************** */
+  try {
+    const formData = new FormData();
+    formData.append('_method', 'PUT'); 
+    formData.append('title', data.title);
+    formData.append('body', data.body);
+    if (data.img && data.img[0]) {
+      formData.append('img', data.img[0]);
+    }
+    console.log(data)
+    await axios.post(`http://localhost:8000/api/posts/${data.id}`, formData);
+  setPosts([]);       
+    setPage(1);         
+    setHasMore(true);    
+    setRefresh(prev => !prev); 
+    navigate("/"); 
+  } catch (err) { 
+    console.error("Error creating post:", err);
+  }
+};
+ /*************************************************************************************************** */
   return (
     <>
     
@@ -130,9 +238,28 @@ function App() {
       <Routes>
         <Route path='/' element={<Home
         allPosts={posts}
+        handelDelete={handelDelete}
+        handelUpdate={handelUpdate}
         />}>
-          
         </Route>
+       <Route  path="/posts/:id/edit" element={<Update
+       
+       register={updatePostregister} 
+       handleSubmit={handelUpdatePostSubmit}  
+       errors={updatePostErrors} 
+       onSubmit={updatePostOnSubmit} 
+       handelOld={data}
+       />}>
+       </Route>
+       <Route  path="/posts/create" element={<CreatePost
+       
+       register={createPostregister} 
+       handleSubmit={handelCreatePostSubmit}  
+       errors={createPostErrors} 
+       onSubmit={createPostOnSubmit}  
+      
+       />}>
+       </Route>
         <Route path="/login" element={<Login
            register={loginRegister} 
            handleSubmit={loginHandleSubmit} 

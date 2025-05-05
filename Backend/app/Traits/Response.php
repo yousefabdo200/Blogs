@@ -17,7 +17,7 @@ Trait Response {
         }
         return response()->json($res,$status);
     }
-    public function ErrorResponse($data=[],$msg='',$status=200)
+    public function ErrorResponse($data=[],$msg='',$status=400)
     {
         $response = [
             'msg' => $msg,

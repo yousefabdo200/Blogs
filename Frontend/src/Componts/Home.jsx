@@ -3,7 +3,7 @@ import { UserContext } from '../Context/UserContext';
 import { useContext } from 'react';
 import { Link } from 'react-router-dom';
 
-export default function Home({ allPosts }) {
+export default function Home({ allPosts ,handelDelete,handelUpdate }) {
   const { user, setUser } = useContext(UserContext);
   console.log(user);
 
@@ -33,14 +33,14 @@ export default function Home({ allPosts }) {
                 <p className="mb-6 text-gray-700">
                   {post.body}
                 </p>
-                {user && (
+                {user &&post.user_id===user.id && (
                   <div className="flex gap-2">
-                    <Link to={`/posts/${post.id}/edit`} className="btn btn-sm btn-primary">
+                    <button onClick={()=>{handelUpdate(post.id)}} className="btn btn-sm btn-primary">
                       Update
-                    </Link>
-                    <Link to={`/posts/${post.id}/delete`} className="btn btn-sm btn-secondary ">
+                    </button>
+                    <button onClick={()=>{handelDelete(post.id)}} className="btn btn-sm btn-secondary ">
                       Delete
-                    </Link>
+                    </button>
                   </div>
                 )}
               </div>

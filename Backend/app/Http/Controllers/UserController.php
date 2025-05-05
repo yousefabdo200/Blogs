@@ -41,6 +41,6 @@ class UserController extends Controller
         $validatedData = $validator->validated();
         $validatedData['password'] = Hash::make($validatedData['password']);
        $user=User::create($validatedData);
-        return $this->SucessResponse($validatedData, 'Login successful');
+        return $this->SucessResponse($user, 'Login successful');
     }
 }
