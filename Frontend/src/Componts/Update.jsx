@@ -1,6 +1,4 @@
-import React from 'react'
 import PostForm from './PostForm'
-
 export default function Update({ handleSubmit, register, errors, onSubmit,handelOld,reset}) {
   return (
     <div>

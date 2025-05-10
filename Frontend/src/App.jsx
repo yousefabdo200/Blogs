@@ -1,5 +1,5 @@
-import { useState , createContext,useContext, useEffect } from 'react'
-import './index.css'
+import { useState, useEffect } from 'react';
+import './index.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './Componts/Navbar';
 import Login from './Componts/Login';
@@ -7,33 +7,75 @@ import Signup from './Componts/signup';
 import Home from './Componts/Home';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
-import { UserContext } from './Context/UserContext';
 import { useNavigate } from "react-router";
 import Update from './Componts/Update';
 import CreatePost from './Componts/CreatePost';
 
+axios.defaults.withCredentials = true;
+
+axios.interceptors.response.use(
+  response => response,
+  async error => {
+    const originalRequest = error.config;
+    if (
+      error.response &&
+      error.response.status === 401 &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
+      try {
+        const res = await axios.post("http://127.0.0.1:8000/api/refresh", {}, {
+          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("refresh_token")}`,
+          }
+        });
+        const newAccessToken = res.data.access_token;
+        localStorage.setItem("access_token", newAccessToken);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
+        originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
+        return axios(originalRequest);
+      } catch (refreshError) {
+       
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 function App() {
+  const [user, setUser] = useState(null);
   let navigate = useNavigate();
-  /******************************Login / signup hadel********************************************* */
-  const [user,setUser]=useState(null);
-  const {register, handleSubmit, formState: { errors }, setError } = useForm();
+
+  // Initialize user state from localStorage
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('access_token');
+    if (storedUser && storedToken) {
+      setUser(JSON.parse(storedUser));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+    }
+  }, []);
+
+  /******************************Login / signup handler********************************************* */
+  const { register, handleSubmit, formState: { errors }, setError } = useForm();
   
   const handleSignup = async (data) => {
     try {
-      const res = await axios.post('http://127.0.0.1:8000/api/signup', data);
-      //console.log('Signup successful:', res.data);
-      setUser({
+      const res = await axios.post('http://127.0.0.1:8000/api/signup', data, {
+        withCredentials: true,
+      });
+      const userData = {
         'name': res.data.data.name,
         'email': res.data.data.email,
         'id': res.data.data.id,
-      });
-      console.log(user);
-      navigate("/")
+      };
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      navigate("/");
     } catch (err) {
       const serverErrors = err.response?.data.data;
-      //console.log('Error:', serverErrors);
-  
-       if (serverErrors) {
+      if (serverErrors) {
         for (const field in serverErrors) {
           setError(field, {
             type: 'server',
@@ -45,27 +87,28 @@ function App() {
           type: 'server',
           message: err.response.data.msg,
         });
-      } else {
-        console.error('Unexpected error:', err.message);
-      }
-    } 
+      } 
+    }
   };
+
+  const { register: loginRegister, handleSubmit: loginHandleSubmit, formState: { errors: loginErrors }, setError: setLogError } = useForm();
   
-  const { register: loginRegister, handleSubmit: loginHandleSubmit, formState: { errors: loginErrors },setError :setLogError } = useForm();
   const handleLoginSubmit = async (data) => {
     try {
       const res = await axios.post('http://127.0.0.1:8000/api/login', data);
-      //console.log('Login successful:', res.data.msg);
-      setUser({
-        name: res.data.data.name,
-        email: res.data.data.email,
-        id: res.data.data.id,
-      });
-      navigate("/")
+      const userData = {
+        'name': res.data.data.name,
+        'email': res.data.data.email,
+        'id': res.data.data.id,
+      };
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('access_token', res.data.access_token);
+
+      axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.access_token}`;
+      setUser(userData);
+      navigate("/");
     } catch (err) {
-      const serverErrors = err.response?.data;
-      console.log('Error:', serverErrors);
-  
+      const serverErrors = err.response?.data;  
       if (serverErrors && serverErrors.errors) {
         for (const field in serverErrors.errors) {
           setLogError(field, {
@@ -74,167 +117,152 @@ function App() {
           });
         }
       } else if (serverErrors && serverErrors.msg) {
-        
-        console.error('Server error message:', serverErrors.msg);
-       
         setLogError('server', {
           type: 'server',
           message: serverErrors.msg, 
         });
-      } else {
-        console.error('Unexpected error:', err.message);
       }
     }
   };
-  /***************************************************************************************** */
-  /************************************get all posts **************************************************** */
-  const [posts,setPosts]=useState([]);
-  const [page,setPage]=useState(1);
-  const [hasMore,setHasMore]=useState(true);
-  const [refersh,setRefresh]=useState(false);
 
-  useEffect(
-    ()=>{
-      const onScroll = () => {
-        if (
-          window.innerHeight + document.documentElement.scrollTop + 100 >=
-            document.documentElement.scrollHeight &&
-          hasMore
-        ) {
-          setPage((prev) => prev + 1);
-        }
-      };
-      window.addEventListener("scroll", onScroll);
-      return () => window.removeEventListener("scroll", onScroll);
-    }
-  , [hasMore])
+  /******************************Posts Fetching, Creating, Updating, and Deleting******************************** */
+
+  const [posts, setPosts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [refresh, setRefresh] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop + 100 >=
+        document.documentElement.scrollHeight && hasMore
+      ) {
+        setPage(prev => prev + 1);
+      }
+    };
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [hasMore]);
+
   useEffect(() => {
     const fetchPosts = async () => {
-      try {
-        const res = await axios.get(`http://127.0.0.1:8000/api/posts?page=${page}`);
-        console.log("API Response:", res.data.data.data);
-        const newPosts =res.data.data.data;
+       const res = await axios.get(`http://127.0.0.1:8000/api/posts?page=${page}`);
+        const newPosts = res.data.data.data;
         if (newPosts.length === 0) {
           setHasMore(false);
         } else {
-          setPosts((prev) => {
+          setPosts(prev => {
             const existingIds = new Set(prev.map(post => post.id));
             const filteredNewPosts = newPosts.filter(post => !existingIds.has(post.id));
             return [...prev, ...filteredNewPosts];
           });
         }
-      } catch (err) {
-        console.error("Error fetching posts:", err);
-      }
     };
     fetchPosts();
-  }, [page,refersh]);
-  /*********************************************Handel Delete******************************************************** */
-  const handelDelete= async (id)=>{
-    try{
+  }, [page, refresh]);
+
+  const handelDelete = async (id) => {
      await axios.delete(`http://127.0.0.1:8000/api/posts/${id}`);
-     setPosts([]);       
-     setPage(1);         
-     setHasMore(true);    
-     setRefresh(prev => !prev); 
-    }
-    catch (err) {
-     console.error("Error deleting post:", err);
-   }
-  }
-  /****************************************************************************************************** */
- /******************************************** handel create post************************************************************ */
- 
-      const {
-        register:createPostregister,
-        handleSubmit:handelCreatePostSubmit,
-        formState: { errors: createPostErrors},
-        reset: resetCreateForm,
-      } = useForm();
-      const createPostOnSubmit = async (data) => {  // Make it async
-        try {
-          const formData = new FormData();
-          formData.append('title', data.title);
-          formData.append('body', data.body);
-          
-          formData.append('user_id', user.id)
-          if (data.img && data.img.length > 0) {
-            formData.append('img', data.img[0]);
-          }
-          console.log("data from create",user)
-          
-          await axios.post('http://localhost:8000/api/posts', formData);
-          setPosts([]);       
-          setPage(1);         
-          setHasMore(true);    
-          setRefresh(prev => !prev); 
-          navigate("/");
-        } catch (err) {
-          console.error("Error creating post:", err);
-        }
-      };
- 
- /************************************************************************************************************************* */
- /*******************************************Handel update******************************************************** */
- const [data,setData]=useState(null)
-const handelUpdate=async(id)=>{
-  try{
+      setPosts([]);       
+      setPage(1);         
+      setHasMore(true);    
+      setRefresh(prev => !prev); 
+  };
+
+  /****************************Handle Create Post******************************************** */
+
+  const { register: createPostregister, handleSubmit: handelCreatePostSubmit, formState: { errors: createPostErrors }, reset: resetCreateForm } = useForm();
+
+  const createPostOnSubmit = async (data) => {
+     const formData = new FormData();
+      formData.append('title', data.title);
+      formData.append('body', data.body);
+      formData.append('user_id', user.id);
+      if (data.img && data.img.length > 0) {
+        formData.append('img', data.img[0]);
+      }
+
+      await axios.post('http://localhost:8000/api/posts', formData);
+      setPosts([]);       
+      setPage(1);         
+      setHasMore(true);    
+      setRefresh(prev => !prev); 
+      navigate("/");
+  };
+
+  /****************************Handle Update Post******************************************** */
+
+  const [data, setData] = useState(null);
+  const handelUpdate = async (id) => {
     const { data } = await axios.get(`http://127.0.0.1:8000/api/posts/${id}`);
-    setData(data.data)
-   }
-   catch (err) {
-    console.error("Error update post:", err);
-  }
-}
-useEffect(() => {
-  if (data) {
-    navigate(`/posts/${data.id}/edit`);  
-  }
-}, [data]);
-const {
-  register: updatePostregister,
-  handleSubmit: handelUpdatePostSubmit,
-  formState: { errors: updatePostErrors },
-  reset: resetUpdateForm, 
-} = useForm();
+      setData(data.data);
+  };
 
-useEffect(() => {
-  if (data) {
-    resetUpdateForm({
-      id: data.id,
-      title: data.title,
-      body: data.body,
-    });
-  }
-}, [data, resetUpdateForm]);
-
-const updatePostOnSubmit = async (data) => { 
-  
-  try {
-    const formData = new FormData();
-    formData.append('_method', 'PUT'); 
-    formData.append('title', data.title);
-    formData.append('body', data.body);
-    if (data.img && data.img[0]) {
-      formData.append('img', data.img[0]);
+  useEffect(() => {
+    if (data) {
+      navigate(`/posts/${data.id}/edit`);
     }
-    console.log(data)
-    await axios.post(`http://localhost:8000/api/posts/${data.id}`, formData);
-  setPosts([]);       
-    setPage(1);         
-    setHasMore(true);    
-    setRefresh(prev => !prev); 
-    navigate("/"); 
-  } catch (err) { 
-    console.error("Error creating post:", err);
-  }
-};
- /*************************************************************************************************** */
-  return (
+  }, [data]);
+
+  const { register: updatePostregister, handleSubmit: handelUpdatePostSubmit, formState: { errors: updatePostErrors }, reset: resetUpdateForm } = useForm();
+
+  useEffect(() => {
+    if (data) {
+      resetUpdateForm({
+        id: data.id,
+        title: data.title,
+        body: data.body,
+      });
+    }
+  }, [data, resetUpdateForm]);
+
+  const updatePostOnSubmit = async (data) => {
+     const formData = new FormData();
+      formData.append('_method', 'PUT');
+      formData.append('title', data.title);
+      formData.append('body', data.body);
+      if (data.img && data.img[0]) {
+        formData.append('img', data.img[0]);
+      }
+
+      await axios.post(`http://localhost:8000/api/posts/${data.id}`, formData);
+      setPosts([]);       
+      setPage(1);         
+      setHasMore(true);    
+      setRefresh(prev => !prev); 
+      navigate("/");
+  };
+
+  /******************************************** Logout ***********************************************/
+
+  const handleLogout = async () => {
+   const accessToken = localStorage.getItem('access_token');
+      if (accessToken) {
+        await axios.post(
+          `http://127.0.0.1:8000/api/logout`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+      }
+
+      localStorage.removeItem('user');
+      localStorage.removeItem('access_token');
+      delete axios.defaults.headers.common['Authorization'];
+      navigate('/');
+  };
+
+ return (
     <>
     
-      <UserContext.Provider value={{ user, setUser }}>
-      <Navbar />
+      
+      <Navbar
+      handleLogout={handleLogout}
+      />
       <Routes>
         <Route path='/' element={<Home
         allPosts={posts}
@@ -275,7 +303,7 @@ const updatePostOnSubmit = async (data) => {
         
         />} />
       </Routes>
-      </UserContext.Provider>
+    
    
     </>
   )

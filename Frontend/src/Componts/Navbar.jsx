@@ -1,16 +1,7 @@
-import { useContext } from 'react';
-import { NavLink, useNavigate ,Link } from 'react-router-dom';
-import { UserContext } from '../Context/UserContext';
+import { NavLink ,Link } from 'react-router-dom';
 
-export default function Navbar() {
-  const { user, setUser } = useContext(UserContext);
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    setUser(null);
-    navigate('/');
-  };
-
+export default function Navbar({handleLogout}) {
+  const user= JSON.parse(localStorage.getItem('user'));
   return (
     <div className="navbar bg-base-100 shadow-sm">
       <div className="flex-1">
@@ -52,7 +43,7 @@ export default function Navbar() {
           ) : (
             <>
               <li>
-                <button onClick={handleLogout} className="text-1xl btn btn-primary">
+                <button onClick={()=>{handleLogout()}} className="text-1xl btn btn-primary">
                   Logout
                 </button>
               </li>

@@ -1,12 +1,7 @@
-import React from 'react';
-import { UserContext } from '../Context/UserContext';
-import { useContext } from 'react';
 import { Link } from 'react-router-dom';
 
 export default function Home({ allPosts ,handelDelete,handelUpdate }) {
-  const { user, setUser } = useContext(UserContext);
-  console.log(user);
-
+  const user= JSON.parse(localStorage.getItem('user')); 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       {allPosts && allPosts.length > 0 ? (

@@ -10,9 +10,14 @@ use \App\Http\Controllers\UserController ;
 Route::post('/login',[UserController::class,'login']);
 Route::post('/signup',[UserController::class,'signup']);
 Route::post('/logout',[UserController::class,'logout']);
-Route::get('/user',[UserController::class,'user']);
-Route::get('/posts',[PostController::class,'index']);
-Route::get('/posts/{id}',[PostController::class,'post']);
-Route::post('/posts',[PostController::class,'store']);
-Route::put('/posts/{id}',[PostController::class,'update']);
-Route::delete("/posts/{id}",[PostController::class,'destroy']);
+Route::middleware('auth:api')->get('/user',[UserController::class,'user']);
+Route::middleware('auth:api')->post('/refresh',[UserController::class,'refresh']);
+Route::prefix('posts')->controller(PostController::class)->group(function(){
+    Route::get('/','index');
+    Route::middleware('auth:api')->group(function(){
+        Route::get('/{id}','post');
+        Route::post('/','store');
+        Route::put('/{id}','update');
+        Route::delete("/{id}",'destroy');
+    });
+});

@@ -1,6 +1,10 @@
 <?php
 namespace App\Traits;
 Trait Response {
+    public function SucessLogResponse($token,)
+    {
+
+    }
     public function SucessResponse($data=[],$msg='',$status=200)
     {
 

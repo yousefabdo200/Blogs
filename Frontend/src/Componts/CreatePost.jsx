@@ -1,11 +1,8 @@
-import React, { useContext } from 'react';  
 import PostForm from './PostForm';
-import { UserContext } from '../Context/UserContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function CreatePost({ handleSubmit, register, errors, onSubmit, reset }) {
-  const { user } = useContext(UserContext);
-  const navigate = useNavigate();
+  const user= JSON.parse(localStorage.getItem('user'));  const navigate = useNavigate();
  
   if (!user) {
     navigate('/');

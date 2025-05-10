@@ -1,7 +1,4 @@
-import React from 'react';
-
 export default function Signup({ handleSubmit, register, errors, onSubmit }) {
-  console.log (errors)
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-w-md mx-auto mt-10 p-6 shadow-lg rounded-lg bg-base-100">
       

@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Traits\Response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use Tymon\JWTAuth\Facades\JWTAuth;
+
 class UserController extends Controller
 {
     use Response;
@@ -18,14 +20,14 @@ class UserController extends Controller
             'email' => 'required|email',
             'password' => 'required',
         ]);
-        if($validator->fails()){
-            return $this->ErrorResponse($validator->errors(),"Failed to login ",400);
+        if($validator->fails()) {
+            return $this->ErrorResponse($validator->errors(), "Failed to login ", 400);
         }
-        $user=User::where('email',$request->email)->first();
-        if (!$user||!Hash::check($request->password, $user->password)) {
+        if (!$token=auth()->attempt($validator->validated())) {
             return $this->ErrorResponse([], 'User not found', 404);
         }
-        return $this->SucessResponse($user, 'Login successful');
+
+         return $this->respondWithTokens(auth()->user(), $token);
     }
     public function signup(Request $request)
     {
@@ -38,9 +40,50 @@ class UserController extends Controller
         if ($validator->fails()) {
             return $this->ErrorResponse($validator->errors(), "Failed to signup", 400);
         }
+
         $validatedData = $validator->validated();
         $validatedData['password'] = Hash::make($validatedData['password']);
        $user=User::create($validatedData);
-        return $this->SucessResponse($user, 'Login successful');
+        $token = auth()->login($user);
+        return $this->respondWithTokens($user,$token);
     }
-}
+    private function respondWithTokens($user,$token)
+    {
+        $refreshToken = JWTAuth::customClaims(['type' => 'refresh'])->fromUser($user);
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'jwt',
+            'data' => ['id'=>$user->id,'name'=>$user->name],
+            'msg' => "login in successfully Done",
+        ])->cookie('refresh_token', $refreshToken, 1440, '/', null, true, true, false, 'Strict');
+    }
+    public function refresh(Request $request)
+    {
+        $refreshToken = $request->cookie('refresh_token');
+        if(!$refreshToken){
+            return $this->ErrorResponse([], 'refresh token is missing', 401);
+        }
+        try{
+            $payload = JWTAuth::setToken($refreshToken)->getPayload();
+            if ($payload->get('type') !== 'refresh') {
+                return $this->ErrorResponse([], 'Invalid refresh token type', 403);
+            }
+            $user = JWTAuth::setToken($refreshToken)->authenticate();
+            $newAccessToken = auth()->login($user);
+            return $this->respondWithTokens($user, $newAccessToken);
+        } catch (\Exception $e) {
+            return $this->ErrorResponse([], 'Token invalid or expired', 401);
+        }
+    }
+    public function user()
+    {
+        return response()->json(auth()->user());
+    }
+    public function logout()
+    {
+        auth()->logout();
+        return response()->json([
+            'msg' => 'Logged out successfully'
+        ])->withoutCookie('refresh_token');
+    }
+    }
