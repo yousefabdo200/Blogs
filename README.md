@@ -28,7 +28,7 @@ This is a full-stack blog application built with **React** for the frontend and 
 - **Database**:
   - MySQL (for storing user and post data)
 - **Styling**:
-  - Custom CSS for UI components
+  - daisyui
 
 ## Installation:
 
